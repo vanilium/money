@@ -1,0 +1,24 @@
+{
+    "name": "vanilium/money",
+    "description": "Example of money pattern",
+    "type": "library",
+    "require": {
+
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.1"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Vanilium\\Money\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "vanilium",
+            "email": "nik.antal@gmail.com"
+        }
+    ],
+    "minimum-stability": "stable"
+}

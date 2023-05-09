@@ -21,6 +21,10 @@ final class CurrencyRepository implements CurrencyRepositoryInterface
      */
     private array $initiatedCurrencies = [];
 
+    private function __construct()
+    {
+    }
+
     public static function instance(): self
     {
         static $instance;
@@ -28,12 +32,14 @@ final class CurrencyRepository implements CurrencyRepositoryInterface
         return $instance ??= new self();
     }
 
+    /**
+     * @throws \Exception
+     */
     public function store(string $currencyClassName): void
     {
         Currency::isCurrency($currencyClassName);
 
-        $this->aliasesList[$currencyClassName::iso()] = $currencyClassName;
-        $this->aliasesList[$currencyClassName::sign()] = $currencyClassName;
+        $this->aliasesList[$currencyClassName::iso()] = $this->aliasesList[$currencyClassName::sign()] = $currencyClassName;
     }
 
     public function get(string $currencyAlias): ?Currency
@@ -45,12 +51,5 @@ final class CurrencyRepository implements CurrencyRepositoryInterface
         }
 
         return $this->initiatedCurrencies[$currencyAlias] ?? null;
-    }
-
-    public static function __callStatic(string $name, array $arguments)
-    {
-        if(method_exists(self::class, $name)) {
-            return call_user_func([self::instance(), $name], $arguments);
-        }
     }
 }

@@ -3,13 +3,19 @@ declare(strict_types=1);
 
 namespace Vanilium\Money;
 
+use Vanilium\Money\Interfaces\CurrencyRepositoryInterface;
+
+/**
+ * @method static void store(string $currency) Register new currency class
+ * @method static Currency get(string $currency) Return currency object
+ */
 abstract class Currency
 {
-    private static $repository;
+    private static CurrencyRepositoryInterface $repository;
 
-    public function __construct()
+    private static function init(): void
     {
-        self::$repository = CurrencyRepository::instance();
+        self::$repository ??= CurrencyRepository::instance();
     }
 
     /**
@@ -33,24 +39,14 @@ abstract class Currency
         return static::iso();
     }
 
-//    static public function make(string $createdCurrency): Currency
-//    {
-//        if(!self::$currenciesList[$createdCurrency]) {
-//            throw new \Exception('Currency not exists');
-//        }
-//
-//        if(!is_object(self::$currenciesList[$createdCurrency])) {
-//            //Replace as inited object
-//            self::store(new self::$currenciesList[$createdCurrency]);
-//        }
-//
-//        return self::$currenciesList[$createdCurrency];
-//    }
+    public static function __callStatic(string $name, array $arguments)
+    {
+        self::init();
 
-//    public static function setExchangeRatios(string $currencyIso, array $ratios): void
-//    {
-//        self::$exchanger->setExchangeRatios(self::$repository->get($currencyIso), $ratios);
-//    }
-
-    //exchange ratio
+        return match($name) {
+            'store' => self::$repository->store(... $arguments),
+            'get' => self::$repository->get(... $arguments),
+            default => throw new \BadMethodCallException('call not exists method')
+        };
+    }
 }

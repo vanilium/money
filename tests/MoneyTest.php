@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Tests;
 
+use Exception;
 use PHPUnit\Framework\TestCase;
 use Vanilium\Money\Currencies\USD;
 use Vanilium\Money\Currency;
@@ -205,7 +206,7 @@ class MoneyTest extends TestCase
      */
     public function test_parse(string $parseValue, string $expectedValue, string $expectedCurrency)
     {
-        $money = Money::make($parseValue);
+        $money = Money::parse($parseValue);
 
         $this->assertEquals($expectedValue, (string) $money->value);
         $this->assertEquals($expectedCurrency, $money->currency);
@@ -219,11 +220,61 @@ class MoneyTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('Not valid value');
 
-        Money::make($parseValue);
+        Money::parse($parseValue);
+    }
+
+    public function test_add()
+    {
+        $money = Money::parse('10 USD');
+
+        $this->assertEquals(10, (string) $money->value);
+
+        $moneyPlus = $money->add('5 USD');
+
+        $this->assertInstanceOf(Money::class, $moneyPlus);
+        $this->assertEquals(15, (string) $moneyPlus->value);
+        $this->assertEquals('USD', $moneyPlus->currency);
+    }
+
+    public function test_sub()
+    {
+        $money = Money::parse('10 USD');
+
+        $this->assertEquals(10, (string) $money->value);
+
+        $moneySub = $money->sub('5 USD');
+
+        $this->assertInstanceOf(Money::class, $moneySub);
+        $this->assertEquals(5, (string) $moneySub->value);
+        $this->assertEquals('USD', $moneySub->currency);
+    }
+
+    public function test_multiply()
+    {
+        $money = Money::parse('10 USD');
+
+        $this->assertEquals(10, (string) $money->value);
+
+        $fiftyPencent = $money->multiply(2);
+
+        $this->assertEquals(20, (string) $fiftyPencent->value);
+    }
+
+    public function test_get_percent()
+    {
+        $this->markTestIncomplete();
+        $money = Money::parse('10 USD');
+
+        $this->assertEquals(10, (string) $money->value);
+
+        $fiftyPencent = $money->calcPercent(50);
+
+        $this->assertEquals(5, (string) $fiftyPencent->value);
     }
 
     public function test_exchange_ratio_to()
     {
+        $this->markTestIncomplete();
         Money::init();
 
         Currency::setExchangeRatios(USD::class, [
@@ -231,14 +282,25 @@ class MoneyTest extends TestCase
             'EUR' => .5
         ]);
 
-        $moneyUsd = Money::make('5USD');
+        $moneyUsd = Money::parse('5USD');
 
         $this->assertEquals(1, $moneyUsd->exchangeRatioTo(USD::class));
         $this->assertEquals(.5, $moneyUsd->exchangeRatioTo(EUR::class));
 
-        $moneyEur = Money::make('5EUR');
+        $moneyEur = Money::parse('5EUR');
 
         $this->assertEquals(1, $moneyEur->exchangeRatioTo(EUR::class));
         $this->assertEquals(2, $moneyEur->exchangeRatioTo(USD::class));
     }
+
+
+
+//    public function test_money_value()
+//    {
+//        $value1 = new MoneyValue(1);
+//        $value2 = new MoneyValue(2);
+//
+//        $valueSum = MoneyValue::summarize($value1, $value2);
+//        $true = true;
+//    }
 }

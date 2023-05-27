@@ -11,13 +11,13 @@ class Money
     public readonly MoneyValue $value;
     public readonly Currency $currency;
     public function __construct(
-        mixed $value,
-        string $currency
+        MoneyValue|float|int $value,
+        Currency|string $currency
     )
     {
         self::init();
 
-        $this->value = new MoneyValue($value);
+        $this->value = $value instanceof MoneyValue ? $value : new MoneyValue($value);
         $this->currency = new USD();
     }
 
@@ -33,13 +33,13 @@ class Money
         ];
 
         foreach ($currencies as $currencyClass) {
-            CurrencyRepository::store($currencyClass);
+            Currency::store($currencyClass);
         }
 
         $inited ??= true;
     }
 
-    static public function make(string $value): Money
+    static public function parse(string $value): Money
     {
         //remove any number ranks
         $value = str_replace([' ', ','], '', $value);
@@ -59,7 +59,7 @@ class Money
             [$value, $currency] = [$currency, $value];
         }
 
-        return new Money($value, $currency);
+        return new Money((float) $value, $currency);
     }
 
     public function __toString(): string
@@ -67,8 +67,54 @@ class Money
         return $this->value .' '. $this->currency;
     }
 
-    public function exchangeRatioTo(string $relatedToClass)
+    public function add(string|Money $toAdd): Money
     {
-        //TODO
+        if(is_string($toAdd)) {
+            $toAdd = self::parse($toAdd);
+        }
+
+        if($this->currency !== $toAdd->currency) {
+            //TODO: exchange to self currency, if exchange ratio exist
+        }
+
+        return new self(
+            value: MoneyValue::summarizing($this->value, $toAdd->value),
+            currency: $this->currency
+        );
+    }
+
+    public function sub(string|Money $toSub): Money
+    {
+        if(is_string($toSub)) {
+            $toSub = self::parse($toSub);
+        }
+
+        if($this->currency !== $toSub->currency) {
+            //TODO: exchange to self currency, if exchange ratio exist
+        }
+
+        return new self(
+            value: MoneyValue::subtractizing($this->value, $toSub->value),
+            currency: $this->currency
+        );
+    }
+
+    public function multiply(int $multiplicator): Money
+    {
+        return new self(
+            value: MoneyValue::multiplying($this->value, $multiplicator),
+            currency: $this->currency
+        );
+    }
+
+    public function calcPercent(int $int): Money
+    {
+        //TODO: incomplite
+        $calcValue = MoneyValue::multiplying($this->value, $int);
+
+        return new self(
+            value: MoneyValue::dividing($calcValue, 100),
+            currency: $this->currency
+        );
     }
 }

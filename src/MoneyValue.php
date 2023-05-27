@@ -8,31 +8,76 @@ class MoneyValue
     private const VALUE_MULTIPLEX = 100;
 
     private int $castedValue;
-    public function __construct(string|float|int $value)
+    public function __construct(float|int $value)
     {
-        if(!is_int($value)) {
+        if(is_float($value)) {
             $value = $this->normalize($value);
         }
 
         $this->castedValue = (int) ($value * self::VALUE_MULTIPLEX);
     }
 
-    private function normalize(string|float $value): float
+    private function normalize(float $value): float
     {
-        if(is_string($value)) {
-            if(!is_numeric($value)) {
-                throw new \Exception('Wrong format');
-            }
-
-            $value = (float) $value;
-        }
-
         $remainder = ((int) $value * self::VALUE_MULTIPLEX) - $value * self::VALUE_MULTIPLEX;
+
         if($remainder > 0) {
             throw new \Exception('Wrong format');
         }
 
         return $value;
+    }
+
+    /**
+     * @param int $castValue
+     * @return MoneyValue
+     */
+    private static function makeValueByCasted(int $castValue): MoneyValue
+    {
+        $newValue = new self(0);
+        $newValue->castedValue = $castValue;
+
+        return $newValue;
+    }
+
+    public static function multiplying(MoneyValue $value, int $multiplicator): MoneyValue
+    {
+        $calcValue = $value->castedValue * $multiplicator;
+
+        return self::makeValueByCasted($calcValue);
+    }
+
+    /**
+     * @param MoneyValue ...$values
+     * @return self
+     */
+    public static function summarizing(MoneyValue ... $values): self
+    {
+        $calcValue = 0;
+        foreach ($values as $value) {
+            $calcValue += $value->castedValue;
+        }
+
+        return self::makeValueByCasted($calcValue);
+    }
+
+    /**
+     * @param MoneyValue ...$values
+     * @return self
+     */
+    public static function subtractizing(MoneyValue ... $values): self
+    {
+        $calcValue = array_shift($values)->castedValue;
+
+        foreach ($values as $value) {
+            $calcValue -= $value->castedValue;
+        }
+
+        if($calcValue < 0) {
+            $calcValue = 0;
+        }
+
+        return self::makeValueByCasted($calcValue);
     }
 
     private function toValue(): float

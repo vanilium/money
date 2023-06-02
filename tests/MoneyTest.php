@@ -5,15 +5,64 @@ namespace Tests;
 
 use Exception;
 use PHPUnit\Framework\TestCase;
+use Vanilium\Money\Currencies\EUR;
 use Vanilium\Money\Currencies\USD;
-use Vanilium\Money\Currency;
 use Vanilium\Money\Money;
 
 class MoneyTest extends TestCase
 {
-    public function test_class_exist()
+    public static function provideCorrectMoneyListCases()
     {
-        $this->assertTrue(class_exists(Money::class));
+        return [
+            '5+5 USD' => [
+                [
+                    new Money(5, USD::class),
+                    new Money(5, USD::class),
+                ],
+                10
+            ],
+            '5+5+5 USD' => [
+                [
+                    new Money(5, USD::class),
+                    new Money(5, USD::class),
+                    new Money(5, USD::class),
+                ],
+                15
+            ],
+            '5+10 USD' => [
+                [
+                    new Money(5, USD::class),
+                    new Money(10, USD::class),
+                ],
+                15
+            ],
+            '5+.5 USD' => [
+                [
+                    new Money(5, USD::class),
+                    new Money(.5, USD::class),
+                ],
+                5.5
+            ],
+        ];
+    }
+
+    public static function provideIncorrectMoneyListCases()
+    {
+        return [
+            'One argument' => [
+                [
+                    new Money(5, USD::class)
+                ],
+                'Expecting 2 or more money arguments'
+            ],
+            'Different currencies argument' => [
+                [
+                    new Money(5, USD::class),
+                    new Money(5, EUR::class),
+                ],
+                'It is impossible to sum money in different currencies'
+            ],
+        ];
     }
 
     /**
@@ -146,7 +195,7 @@ class MoneyTest extends TestCase
         ];
     }
 
-    public static function provideParseNegativeCases(): array
+    public static function provideParseIncorrectCases(): array
     {
         return [
             '123.4567USD' => [
@@ -182,13 +231,37 @@ class MoneyTest extends TestCase
         ];
     }
 
+    public static function provideSplitCases(): array
+    {
+        return [
+            'Split to 2 group by one param equally' => [
+                10,
+                [2],
+                2,
+                [5, 5]
+            ],
+            'Split to 3 group by one param not equally' => [
+                10,
+                [3],
+                3,
+                [3.33, 3.33, 3.34]
+            ],
+            'Split to 3 different group by one param' => [
+                10,
+                [4,2,1],
+                3,
+                [5.71, 2.86, 1.43]
+            ],
+        ];
+    }
+
     public function test_instance()
     {
         $moneyValue = 5;
         $moneyCurrency = "USD"; //$
         $money = new Money($moneyValue, $moneyCurrency);
 
-        $this->assertEquals((string) $moneyValue, $money->value);
+        $this->assertEquals($moneyValue, $money->value);
         $this->assertEquals($moneyCurrency, $money->currency);
     }
 
@@ -208,14 +281,14 @@ class MoneyTest extends TestCase
     {
         $money = Money::parse($parseValue);
 
-        $this->assertEquals($expectedValue, (string) $money->value);
+        $this->assertEquals($expectedValue, $money->value);
         $this->assertEquals($expectedCurrency, $money->currency);
     }
 
     /**
-     * @dataProvider provideParseNegativeCases
+     * @dataProvider provideParseIncorrectCases
      */
-    public function test_parse_negative(string $parseValue)
+    public function test_parse_incorrect(string $parseValue)
     {
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('Not valid value');
@@ -223,41 +296,44 @@ class MoneyTest extends TestCase
         Money::parse($parseValue);
     }
 
-    public function test_add()
+    /**
+     * @dataProvider provideCorrectMoneyListCases
+     */
+    public function test_sum(array $moneyList, int|float $expectMoneyValueResult)
     {
-        $money = Money::parse('10 USD');
+        $moneySum = Money::sum(... $moneyList);
 
-        $this->assertEquals(10, (string) $money->value);
-
-        $moneyPlus = $money->add('5 USD');
-
-        $this->assertInstanceOf(Money::class, $moneyPlus);
-        $this->assertEquals(15, (string) $moneyPlus->value);
-        $this->assertEquals('USD', $moneyPlus->currency);
+        $this->assertEquals($expectMoneyValueResult, $moneySum->value);
     }
 
-    public function test_sub()
+    /**
+     * @dataProvider provideIncorrectMoneyListCases
+     */
+    public function test_sum_incorrect_cases(array $moneyList, string $expectExceptionMessage)
     {
-        $money = Money::parse('10 USD');
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage($expectExceptionMessage);
 
-        $this->assertEquals(10, (string) $money->value);
-
-        $moneySub = $money->sub('5 USD');
-
-        $this->assertInstanceOf(Money::class, $moneySub);
-        $this->assertEquals(5, (string) $moneySub->value);
-        $this->assertEquals('USD', $moneySub->currency);
+        Money::sum(... $moneyList);
     }
 
-    public function test_multiply()
+    /**
+     * @dataProvider provideSplitCases
+     */
+    public function test_split(int $initMoneyValue, array $splitOn, int $expectCount, array $expectValues)
     {
-        $money = Money::parse('10 USD');
+        $money = new Money($initMoneyValue, USD::class );
 
-        $this->assertEquals(10, (string) $money->value);
+        $moneyStack = Money::split($money, ... $splitOn);
 
-        $fiftyPencent = $money->multiply(2);
+        $this->assertCount($expectCount, $moneyStack);
+        $this->assertContainsOnlyInstancesOf(Money::class, $moneyStack);
+        $this->assertEquals(
+            $initMoneyValue,
+            Money::sum(...$moneyStack)->value
+        );
 
-        $this->assertEquals(20, (string) $fiftyPencent->value);
+        $this->assertEqualsCanonicalizing($expectValues, array_map(fn(Money $money) => $money->value, $moneyStack));
     }
 
     public function test_get_percent()
@@ -265,42 +341,10 @@ class MoneyTest extends TestCase
         $this->markTestIncomplete();
         $money = Money::parse('10 USD');
 
-        $this->assertEquals(10, (string) $money->value);
+        $this->assertEquals(10, $money->value);
 
         $fiftyPencent = $money->calcPercent(50);
 
-        $this->assertEquals(5, (string) $fiftyPencent->value);
+        $this->assertEquals(5, $fiftyPencent->value);
     }
-
-    public function test_exchange_ratio_to()
-    {
-        $this->markTestIncomplete();
-        Money::init();
-
-        Currency::setExchangeRatios(USD::class, [
-            'USD' => 1,
-            'EUR' => .5
-        ]);
-
-        $moneyUsd = Money::parse('5USD');
-
-        $this->assertEquals(1, $moneyUsd->exchangeRatioTo(USD::class));
-        $this->assertEquals(.5, $moneyUsd->exchangeRatioTo(EUR::class));
-
-        $moneyEur = Money::parse('5EUR');
-
-        $this->assertEquals(1, $moneyEur->exchangeRatioTo(EUR::class));
-        $this->assertEquals(2, $moneyEur->exchangeRatioTo(USD::class));
-    }
-
-
-
-//    public function test_money_value()
-//    {
-//        $value1 = new MoneyValue(1);
-//        $value2 = new MoneyValue(2);
-//
-//        $valueSum = MoneyValue::summarize($value1, $value2);
-//        $true = true;
-//    }
 }

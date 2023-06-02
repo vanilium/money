@@ -80,6 +80,40 @@ class MoneyValue
         return self::makeValueByCasted($calcValue);
     }
 
+    /**
+     * @param int ...$parts
+     * @return MoneyValue[]
+     */
+    public function split(int ...$parts): array
+    {
+        if(count($parts) === 1) {
+            return [self::makeValueByCasted($this->castedValue)];
+        }
+
+        $commonOfParts = array_sum($parts);
+        $valuesInParts = [];
+        $remainder = [];
+        foreach ($parts as $part) {
+            $multiplyed = $this->castedValue * $part;
+            $valuesInParts[] = (int) ($multiplyed / $commonOfParts);
+            $remainder[] = $multiplyed % $commonOfParts;
+        }
+
+        $toIncrease = array_sum($remainder) / $commonOfParts;
+        while($toIncrease) {
+            $toIncrease--;
+            $indexToIncrease = array_search(max($remainder), $remainder);
+            $remainder[$indexToIncrease] = 0;
+            $valuesInParts[$indexToIncrease] += 1;
+        }
+
+
+        return array_map(
+            fn(int $castedValue) => self::makeValueByCasted($castedValue),
+            $valuesInParts
+        );
+    }
+
     private function toValue(): float
     {
         return $this->castedValue / self::VALUE_MULTIPLEX;

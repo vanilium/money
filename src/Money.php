@@ -6,10 +6,19 @@ namespace Vanilium\Money;
 use Vanilium\Money\Currencies\EUR;
 use Vanilium\Money\Currencies\USD;
 
+/**
+ * @property string $value
+ */
 class Money
 {
-    public readonly MoneyValue $value;
+    private readonly MoneyValue $value;
     public readonly Currency $currency;
+
+    /**
+     * @param MoneyValue|float|int $value
+     * @param Currency|string $currency
+     * @throws \Exception
+     */
     public function __construct(
         MoneyValue|float|int $value,
         Currency|string $currency
@@ -18,7 +27,7 @@ class Money
         self::init();
 
         $this->value = $value instanceof MoneyValue ? $value : new MoneyValue($value);
-        $this->currency = new USD();
+        $this->currency = is_string($currency) ? Currency::get($currency) : $currency;
     }
 
     static public function init(): void
@@ -62,6 +71,57 @@ class Money
         return new Money((float) $value, $currency);
     }
 
+    public function __get(string $name)
+    {
+        return match ($name) {
+            'value' => (string) $this->value,
+            default => null
+        };
+    }
+
+
+    /**
+     * @param Money ...$toSumMoneys
+     * @return Money
+     * @throws \Exception
+     */
+    public static function sum(Money ... $toSumMoneys): Money
+    {
+        if(count($toSumMoneys) < 2) {
+            throw new \Exception('Expecting 2 or more money arguments');
+        }
+
+        $moneyCurrency = array_reduce(
+            $toSumMoneys,
+            fn(Currency $currency, Money $currentMoney) => is_a($currentMoney->currency, get_class($currency))
+                ? $currentMoney->currency
+                : throw new \Exception('It is impossible to sum money in different currencies'),
+            current($toSumMoneys)->currency
+        );
+
+        return new Money(
+            value: MoneyValue::summarizing(... array_map(fn(Money $money) => $money->value, $toSumMoneys)),
+            currency: $moneyCurrency
+        );
+    }
+
+    /**
+     * @param Money $forSplit
+     * @param int[] $parts Array with numbers, every number is the part's weight in the total amount. One number splits the full amount into an equal number of parts
+     * @return Money[] Array of parts
+     */
+    public static function split(Money $forSplit, int ... $parts): array
+    {
+        if(count($parts) === 1) {
+            $parts = array_fill(0, $parts[0], 1);
+        }
+
+        return array_map(
+            fn(MoneyValue $moneyValue): Money => new Money($moneyValue, $forSplit->currency),
+            $forSplit->value->split(... $parts)
+        );
+    }
+
     public function __toString(): string
     {
         return $this->value .' '. $this->currency;
@@ -99,16 +159,9 @@ class Money
         );
     }
 
-    public function multiply(int $multiplicator): Money
+    public function calcPercent(int|float $int): Money
     {
-        return new self(
-            value: MoneyValue::multiplying($this->value, $multiplicator),
-            currency: $this->currency
-        );
-    }
-
-    public function calcPercent(int $int): Money
-    {
+        return new self(0, $this->currency);
         //TODO: incomplite
         $calcValue = MoneyValue::multiplying($this->value, $int);
 

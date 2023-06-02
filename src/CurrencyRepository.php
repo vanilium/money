@@ -42,14 +42,16 @@ final class CurrencyRepository implements CurrencyRepositoryInterface
         $this->aliasesList[$currencyClassName::iso()] = $this->aliasesList[$currencyClassName::sign()] = $currencyClassName;
     }
 
-    public function get(string $currencyAlias): ?Currency
+    public function get(string $currencyAlias): Currency
     {
         if(empty($this->initiatedCurrencies[$currencyAlias])) {
-            if($currencyClass = $this->aliasesList[$currencyAlias]) {
+            $currencyClass = ($this->aliasesList[$currencyAlias] ?? null) ?? (in_array($currencyAlias, $this->aliasesList) ? $currencyAlias : false );
+
+            if($currencyClass) {
                 $this->initiatedCurrencies[$currencyAlias] = new $currencyClass();
             }
         }
 
-        return $this->initiatedCurrencies[$currencyAlias] ?? null;
+        return $this->initiatedCurrencies[$currencyAlias] ?? throw new \Exception('Currency not defined');
     }
 }
